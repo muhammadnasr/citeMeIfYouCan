@@ -199,9 +199,6 @@ async def upload_chunks(schema_version: str = Form(...), file: Optional[UploadFi
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error processing upload: {str(e)}\n{error_details}")
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
 @app.post("/api/similarity_search")
@@ -218,6 +215,11 @@ async def similarity_search(request: SimilaritySearchRequest):
         # Generate embedding for the query
         query_embedding = generate_embedding(request.query)
         
+        # Check if index has any vectors
+        stats = index.describe_index_stats()
+        if stats.get('total_vector_count', 0) == 0:
+            return SimilaritySearchResponse(results=[])
+        
         # Perform similarity search
         search_results = index.query(
             vector=query_embedding,
@@ -227,7 +229,7 @@ async def similarity_search(request: SimilaritySearchRequest):
         
         # Process and filter results
         results = []
-        for match in search_results["matches"]:
+        for match in search_results.get("matches", []):
             if match["score"] < request.min_score:
                 continue
                 
@@ -235,9 +237,23 @@ async def similarity_search(request: SimilaritySearchRequest):
             metadata = match["metadata"]
             text = metadata.pop("text", "")  # Remove text from metadata
             
+            # Add missing fields with defaults if needed
+            required_fields = ["id", "source_doc_id", "chunk_index", "section_heading", 
+                            "doi", "journal", "publish_year", "usage_count", 
+                            "attributes", "link"]
+            
+            for field in required_fields:
+                if field not in metadata:
+                    if field == "attributes":
+                        metadata[field] = {}
+                    elif field in ["chunk_index", "publish_year", "usage_count"]:
+                        metadata[field] = 0
+                    else:
+                        metadata[field] = ""
+            
             result = SimilaritySearchResult(
-                id=match.id,
-                score=match.score,
+                id=match["id"],
+                score=match["score"],
                 metadata=ChunkMetadata(**metadata),
                 text=text
             )
