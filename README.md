@@ -1,25 +1,55 @@
 # Cite Me If You Can
 
-A semantic search API for scientific journals that allows users to find relevant research papers based on natural language queries.
+A semantic search application for scientific journals that allows users to find relevant research papers based on natural language queries and get AI-generated answers with proper citations.
 
-## Setup
+## Project Structure
 
-1. Clone the repository
+The project is organized into two main components:
+
+- **Backend**: FastAPI-based semantic search API with Pinecone vector database integration
+- **Frontend**: React-based single-page web application for user interaction
+
+## Backend Setup
+
+1. Navigate to the backend directory:
+   ```
+   cd backend
+   ```
+
 2. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
+
 3. Create a `.env` file based on `.env.example` and add your Pinecone API key
+
 4. Start the server:
    ```
    uvicorn app:app --reload
+   ```
+
+## Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```
+   npm install
+   ```
+
+3. Start the development server:
+   ```
+   npm run dev
    ```
 
 ## Ingestion Pipeline
 
 The system includes a comprehensive ingestion pipeline for processing scientific journal documents. For detailed information about the pipeline design, implementation, and vector database selection, please refer to the [Ingestion Pipeline Design](./ingestion_pipeline_design.md) document.
 
-## API Endpoints
+## Backend API Endpoints
 
 ### Upload Journal Chunks
 
@@ -79,6 +109,19 @@ Performs semantic similarity search using the provided query.
   ]
 }
 ```
+
+## Frontend Features
+
+The frontend provides a user-friendly interface for interacting with the semantic search API:
+
+1. **Question Input**: Users can enter natural language questions about scientific topics
+
+2. **AI-Generated Answers**: The system processes the question, retrieves relevant journal chunks, and generates a comprehensive answer
+
+3. **Citation Display**: All answers include proper citations showing:
+   - Source document ID (e.g., `extension_brief_mucuna.pdf`)
+   - Section heading (e.g., "Why Grow Velvet Bean?")
+   - Clickable link to the original document
 
 ## Chunk Format
 
