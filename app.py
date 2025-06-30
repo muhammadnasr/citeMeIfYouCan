@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Body, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -6,7 +6,7 @@ import os
 import json
 import numpy as np
 from dotenv import load_dotenv
-from pinecone import Pinecone, ServerlessSpec
+import pinecone
 from sentence_transformers import SentenceTransformer
 
 # Load environment variables
@@ -33,23 +33,22 @@ model = SentenceTransformer('all-MiniLM-L6-v2')  # Can be replaced with a more d
 
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
-environment = os.getenv("PINECONE_ENVIRONMENT", "gcp-starter")
+pinecone_environment = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
 index_name = os.getenv("PINECONE_INDEX", "journal-chunks")
 
 if api_key:
-    pc = Pinecone(api_key=api_key)
+    pc = pinecone.Pinecone(api_key=api_key)
     # Check if index exists, if not create it
     try:
         index = pc.Index(index_name)
         print(f"Connected to existing index: {index_name}")
     except Exception:
         print(f"Creating new index: {index_name}")
-        # Create a new index with serverless spec
         pc.create_index(
             name=index_name,
             dimension=model.get_sentence_embedding_dimension(),
             metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-west-2")
+            spec=pinecone.ServerlessSpec(cloud="aws", region=pinecone_environment)
         )
         index = pc.Index(index_name)
 else:
@@ -96,23 +95,37 @@ def generate_embedding(text):
     return model.encode(text).tolist()
 
 def store_chunks_in_vector_db(chunks):
-    """Store chunks with embeddings in Pinecone"""
+    """Store processed chunks in the vector database"""
     if not index:
         raise HTTPException(status_code=500, detail="Vector database not initialized")
     
     vectors = []
     for chunk in chunks:
-        chunk_dict = chunk.dict()
+        chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else chunk.dict()
         embedding = generate_embedding(chunk.text)
+        
+        # Prepare metadata - Pinecone only accepts simple types
+        metadata = {}
+        for key, value in chunk_dict.items():
+            if key == 'attributes':
+                # Convert attributes dict to a list of strings for Pinecone
+                if isinstance(value, dict):
+                    metadata['attribute_keys'] = list(value.keys())
+                else:
+                    metadata['attribute_keys'] = []
+            elif isinstance(value, (str, int, float, bool)) or (
+                isinstance(value, list) and all(isinstance(item, str) for item in value)
+            ):
+                metadata[key] = value
+        
+        # Always include text in metadata for retrieval
+        metadata['text'] = chunk.text
         
         # Prepare record for insertion
         vector = {
             'id': chunk.id,
             'values': embedding,
-            'metadata': {
-                **chunk_dict,
-                'text': chunk.text  # Include text in metadata for retrieval
-            }
+            'metadata': metadata
         }
         
         vectors.append(vector)
@@ -129,15 +142,29 @@ def process_document_chunks(chunks_data):
     """Process document chunks and prepare them for storage"""
     chunks = []
     for chunk_data in chunks_data:
+        # Ensure attributes is a dictionary
+        if isinstance(chunk_data.get('attributes', []), list):
+            # Convert list of attributes to a dictionary
+            attributes = {attr: True for attr in chunk_data.get('attributes', [])}
+            chunk_data['attributes'] = attributes
+            
+        # Set default values for optional fields
+        if 'doi' not in chunk_data:
+            chunk_data['doi'] = 'Unknown'
+            
         # Create Chunk object with validation
-        chunk = Chunk(**chunk_data)
-        chunks.append(chunk)
+        try:
+            chunk = Chunk(**chunk_data)
+            chunks.append(chunk)
+        except Exception as e:
+            print(f"Error processing chunk {chunk_data.get('id', 'unknown')}: {str(e)}")
+            raise
     
     return chunks
 
 # API Endpoints
 @app.put("/api/upload", status_code=202)
-async def upload_chunks(request: UploadRequest = Body(...), file: Optional[UploadFile] = File(None)):
+async def upload_chunks(schema_version: str = Form(...), file: Optional[UploadFile] = File(None), file_url: Optional[str] = Form(None)):
     """
     Upload journal chunks, generate embeddings, and store them in the vector database.
     
@@ -150,7 +177,7 @@ async def upload_chunks(request: UploadRequest = Body(...), file: Optional[Uploa
             # Read uploaded file content
             content = await file.read()
             chunks_data = json.loads(content)
-        elif request.file_url:
+        elif file_url:
             # TODO: Implement fetching from URL
             # For now, raise an error
             raise HTTPException(status_code=400, detail="file_url support not implemented yet")
@@ -158,14 +185,23 @@ async def upload_chunks(request: UploadRequest = Body(...), file: Optional[Uploa
             raise HTTPException(status_code=400, detail="Either file or file_url must be provided")
         
         # Process chunks
-        chunks = process_document_chunks(chunks_data)
+        try:
+            chunks = process_document_chunks(chunks_data)
+        except Exception as validation_error:
+            raise HTTPException(status_code=422, detail=f"Invalid chunk format: {str(validation_error)}")
         
         # Store in vector database
         num_stored = store_chunks_in_vector_db(chunks)
         
         return {"message": f"Successfully processed and stored {num_stored} chunks", "status": "accepted"}
     
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error processing upload: {str(e)}\n{error_details}")
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
 @app.post("/api/similarity_search")
@@ -197,11 +233,11 @@ async def similarity_search(request: SimilaritySearchRequest):
                 
             # Extract metadata and create result object
             metadata = match["metadata"]
-            text = metadata.pop("text", "")
+            text = metadata.pop("text", "")  # Remove text from metadata
             
             result = SimilaritySearchResult(
-                id=match["id"],
-                score=match["score"],
+                id=match.id,
+                score=match.score,
                 metadata=ChunkMetadata(**metadata),
                 text=text
             )
