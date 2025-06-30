@@ -1,0 +1,30 @@
+.citation-chart-container {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-wrapper {
+  height: 300px;
+  width: 100%;
+  position: relative;
+}
+
+.empty-chart {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.empty-chart h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.empty-chart p {
+  font-style: italic;
+}
