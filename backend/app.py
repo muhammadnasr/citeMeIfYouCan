@@ -8,9 +8,17 @@ import numpy as np
 from dotenv import load_dotenv
 import pinecone
 from sentence_transformers import SentenceTransformer
+import openai
 
 # Load environment variables
 load_dotenv()
+
+# Initialize OpenAI client
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if openai_api_key:
+    openai.api_key = openai_api_key
+else:
+    print("Warning: OPENAI_API_KEY not found in environment variables")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -88,6 +96,20 @@ class SimilaritySearchResult(BaseModel):
 
 class SimilaritySearchResponse(BaseModel):
     results: List[SimilaritySearchResult]
+
+class QuestionAnswerRequest(BaseModel):
+    question: str
+    k: int = 10
+    min_score: float = 0.25
+
+class Citation(BaseModel):
+    source_doc_id: str
+    section_heading: str
+    link: str
+
+class QuestionAnswerResponse(BaseModel):
+    answer: str
+    citations: List[Citation]
 
 # Helper functions
 def generate_embedding(text):
@@ -263,6 +285,82 @@ async def similarity_search(request: SimilaritySearchRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error performing similarity search: {str(e)}")
+
+@app.post("/api/question_answer")
+async def question_answer(request: QuestionAnswerRequest):
+    """
+    Generate an answer to a question using relevant chunks from the vector database.
+    
+    1. Performs semantic search to find relevant chunks
+    2. Sends chunks to LLM to generate an answer
+    3. Returns the answer with proper citations
+    """
+    try:
+        if not openai_api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+            
+        # First, perform similarity search to find relevant chunks
+        search_request = SimilaritySearchRequest(
+            query=request.question,
+            k=request.k,
+            min_score=request.min_score
+        )
+        
+        search_response = await similarity_search(search_request)
+        
+        if not search_response.results:
+            return QuestionAnswerResponse(
+                answer="I couldn't find any relevant information to answer your question.",
+                citations=[]
+            )
+        
+        # Prepare context from search results
+        context = ""
+        citations = []
+        
+        for i, result in enumerate(search_response.results):
+            context += f"\n\nCHUNK {i+1}:\n{result.text}\n"
+            context += f"SOURCE: {result.metadata.source_doc_id}, SECTION: {result.metadata.section_heading}\n"
+            
+            citation = Citation(
+                source_doc_id=result.metadata.source_doc_id,
+                section_heading=result.metadata.section_heading,
+                link=result.metadata.link
+            )
+            citations.append(citation)
+        
+        # Generate answer using OpenAI
+        prompt = f"""Answer the following question based on the provided context. 
+        Include information only from the context. If you cannot answer the question based on the context, 
+        say that you don't have enough information.
+        
+        QUESTION: {request.question}
+        
+        CONTEXT: {context}
+        
+        Provide a comprehensive answer with proper citations. Do not mention 'CHUNK' or 'SOURCE' in your answer.
+        Instead, integrate the information smoothly and cite sources at the end of relevant sentences or paragraphs.
+        """
+        
+        response = openai.chat.completions.create(
+            model="gpt-4",  # or another appropriate model
+            messages=[
+                {"role": "system", "content": "You are a helpful research assistant that provides accurate information with proper citations."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1000
+        )
+        
+        answer = response.choices[0].message.content
+        
+        return QuestionAnswerResponse(
+            answer=answer,
+            citations=citations
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
