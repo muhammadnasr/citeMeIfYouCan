@@ -1,7 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Depends
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
 import os
 import json
 import numpy as np
@@ -27,10 +28,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["http://localhost:5173", "*"],  # Frontend dev server and others
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
