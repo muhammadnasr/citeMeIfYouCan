@@ -9,7 +9,6 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import './CitationChart.css';
 
 // Register Chart.js components
 ChartJS.register(
@@ -119,16 +118,16 @@ const CitationChart = ({ citations }) => {
   
   if (!chartData || Object.keys(citationCounts).length === 0) {
     return (
-      <div className="citation-chart-container empty-chart">
-        <h3>Most Cited Articles (This Session)</h3>
-        <p>No citations yet. Ask questions to see citation statistics.</p>
+      <div className="bg-gray-50 p-6 rounded-lg text-center border border-gray-200">
+        <h3 className="text-lg font-medium text-gray-800 mb-2">Most Cited Articles (This Session)</h3>
+        <p className="text-gray-600">No citations yet. Ask questions to see citation statistics.</p>
       </div>
     );
   }
   
   return (
-    <div className="citation-chart-container">
-      <div className="chart-wrapper">
+    <div>
+      <div className="h-64 md:h-80">
         <Bar data={chartData} options={chartOptions} />
       </div>
     </div>
