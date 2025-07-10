@@ -1,16 +1,27 @@
-import os
-from dotenv import load_dotenv
+from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load environment variables
-load_dotenv()
+class Settings(BaseSettings):
+    # OpenAI Configuration
+    openai_api_key: str
+    
+    # Pinecone Configuration
+    pinecone_api_key: str
+    pinecone_environment: str = "us-east-1"
+    pinecone_index: str = "journal-chunks"
+    
+    # API Configuration
+    allowed_origins: List[str] = ["http://localhost:5173", "*"]
+    
+    # Additional application settings
+    app_name: str = "Cite Me If You Can"
+    debug: bool = False
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False
+    )
 
-# OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# Pinecone Configuration
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX", "journal-chunks")
-
-# API Configuration
-ALLOWED_ORIGINS = ["http://localhost:5173", "*"]
+# Create a global settings instance
+settings = Settings()

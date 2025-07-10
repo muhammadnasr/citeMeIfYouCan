@@ -7,7 +7,8 @@ from fastapi.testclient import TestClient
 # Add parent directory to path to import app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import services for initialization
+# Import config and services
+from core.config import settings
 from services.pinecone_service import initialize_pinecone
 
 # Initialize Pinecone before importing app

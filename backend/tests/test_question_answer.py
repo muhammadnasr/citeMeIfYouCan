@@ -2,21 +2,18 @@ from fastapi.testclient import TestClient
 import pytest
 import os
 import sys
-from dotenv import load_dotenv
 
 # Add parent directory to path to allow importing app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Load environment variables
-load_dotenv()
-
-# Import services for initialization
+# Import config and services
+from core.config import settings
 from services.pinecone_service import initialize_pinecone
 
 # Initialize Pinecone before importing app
 index = initialize_pinecone()
 
-# Import app after environment variables are loaded and services initialized
+# Import app after initialization
 from main import app
 
 client = TestClient(app)
@@ -24,8 +21,8 @@ client = TestClient(app)
 def test_question_answer_endpoint():
     """Test the question_answer endpoint with a simple question"""
     # Skip test if OpenAI API key is not set
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set, skipping test")
+    if not settings.openai_api_key:
+        pytest.skip("OpenAI API key not set in settings, skipping test")
     
     # Test data
     test_data = {

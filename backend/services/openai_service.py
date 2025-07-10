@@ -1,12 +1,12 @@
 import openai
 from fastapi import HTTPException
-from core.config import OPENAI_API_KEY
+from core.config import settings
 
 # Initialize OpenAI client
-if OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+if settings.openai_api_key:
+    openai.api_key = settings.openai_api_key
 else:
-    print("Warning: OPENAI_API_KEY not found in environment variables")
+    print("Warning: OpenAI API key not found in settings")
 
 def generate_answer(question, context):
     """Generate an answer to a question using OpenAI and the provided context
@@ -21,7 +21,7 @@ def generate_answer(question, context):
     Raises:
         HTTPException: If OpenAI API key is not configured
     """
-    if not OPENAI_API_KEY:
+    if not settings.openai_api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key not configured")
     
     # Generate prompt

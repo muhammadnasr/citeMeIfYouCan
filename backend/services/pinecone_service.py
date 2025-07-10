@@ -1,6 +1,6 @@
 import pinecone
 from fastapi import HTTPException
-from core.config import PINECONE_API_KEY, PINECONE_ENVIRONMENT, PINECONE_INDEX_NAME
+from core.config import settings
 from core.embeddings import get_model_dimension
 
 # Initialize Pinecone client
@@ -15,26 +15,26 @@ def initialize_pinecone():
     """
     global pc, index
     
-    if not PINECONE_API_KEY:
-        print("Warning: PINECONE_API_KEY not found in environment variables")
+    if not settings.pinecone_api_key:
+        print("Warning: Pinecone API key not found in settings")
         return None
     
     try:
-        pc = pinecone.Pinecone(api_key=PINECONE_API_KEY)
+        pc = pinecone.Pinecone(api_key=settings.pinecone_api_key)
         
         # Check if index exists, if not create it
         try:
-            index = pc.Index(PINECONE_INDEX_NAME)
-            print(f"Connected to existing index: {PINECONE_INDEX_NAME}")
+            index = pc.Index(settings.pinecone_index)
+            print(f"Connected to existing index: {settings.pinecone_index}")
         except Exception:
-            print(f"Creating new index: {PINECONE_INDEX_NAME}")
+            print(f"Creating new index: {settings.pinecone_index}")
             pc.create_index(
-                name=PINECONE_INDEX_NAME,
+                name=settings.pinecone_index,
                 dimension=get_model_dimension(),
                 metric="cosine",
-                spec=pinecone.ServerlessSpec(cloud="aws", region=PINECONE_ENVIRONMENT)
+                spec=pinecone.ServerlessSpec(cloud="aws", region=settings.pinecone_environment)
             )
-            index = pc.Index(PINECONE_INDEX_NAME)
+            index = pc.Index(settings.pinecone_index)
         
         return index
     except Exception as e:

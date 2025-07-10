@@ -43,11 +43,13 @@ The backend is organized into modular components:
    pip install -r requirements.txt
    ```
 
-3. Create a `.env` file based on `.env.sample` and add your API keys:
+3. Create a `.env` file based on `.env.example` and add your API keys:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `PINECONE_API_KEY`: Your Pinecone API key
    - `PINECONE_ENVIRONMENT`: Pinecone environment (default: us-east-1)
    - `PINECONE_INDEX`: Pinecone index name (default: journal-chunks)
+   
+   Additional configuration options are available in `.env.example`
 
 4. Start the server:
    ```
