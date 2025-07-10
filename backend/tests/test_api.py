@@ -4,10 +4,19 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 
-# Add parent directory to path to import app.py
+# Add parent directory to path to import app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app import app
 
+# Import services for initialization
+from services.pinecone_service import initialize_pinecone
+
+# Initialize Pinecone before importing app
+index = initialize_pinecone()
+
+# Now import the app
+from main import app
+
+# Initialize test client
 client = TestClient(app)
 
 # Load sample chunks for testing
@@ -23,6 +32,11 @@ def test_similarity_search_endpoint():
     }
     
     response = client.post("/api/similarity_search", json=request_data)
+    
+    # Print response for debugging
+    print(f"\nStatus code: {response.status_code}")
+    if response.status_code != 200:
+        print(f"Error response: {response.json()}\n")
     
     # The endpoint should return a valid response structure
     assert response.status_code == 200

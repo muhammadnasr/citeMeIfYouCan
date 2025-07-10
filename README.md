@@ -9,6 +9,28 @@ The project is organized into two main components:
 - **Backend**: FastAPI-based semantic search API with Pinecone vector database integration
 - **Frontend**: React-based single-page web application for user interaction
 
+### Backend Module Structure
+
+The backend is organized into modular components:
+
+- **api/**: API routes and endpoints
+  - **upload.py**: Document upload endpoint
+  - **search.py**: Semantic search endpoints
+  - **qa.py**: Question-answer endpoints
+  - **routes.py**: Router aggregation
+- **core/**: Core configuration and utilities
+  - **config.py**: Environment and application configuration
+  - **embeddings.py**: Text embedding functionality
+- **models/**: Pydantic data models
+  - **chunks.py**: Document chunk models
+  - **search.py**: Search request/response models
+  - **qa.py**: Question-answer models
+- **services/**: External service integrations
+  - **pinecone_service.py**: Vector database service
+  - **openai_service.py**: LLM service
+- **utils/**: Utility functions
+- **tests/**: Test modules
+
 ## Backend Setup
 
 1. Navigate to the backend directory:
@@ -21,11 +43,15 @@ The project is organized into two main components:
    pip install -r requirements.txt
    ```
 
-3. Create a `.env` file based on `.env.example` and add your Pinecone API key
+3. Create a `.env` file based on `.env.sample` and add your API keys:
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `PINECONE_API_KEY`: Your Pinecone API key
+   - `PINECONE_ENVIRONMENT`: Pinecone environment (default: us-east-1)
+   - `PINECONE_INDEX`: Pinecone index name (default: journal-chunks)
 
 4. Start the server:
    ```
-   uvicorn app:app --reload
+   uvicorn main:app --reload
    ```
 
 ## Frontend Setup

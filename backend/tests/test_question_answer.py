@@ -10,8 +10,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Load environment variables
 load_dotenv()
 
-# Import app after environment variables are loaded
-from app import app
+# Import services for initialization
+from services.pinecone_service import initialize_pinecone
+
+# Initialize Pinecone before importing app
+index = initialize_pinecone()
+
+# Import app after environment variables are loaded and services initialized
+from main import app
 
 client = TestClient(app)
 
